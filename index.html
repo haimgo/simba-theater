@@ -756,7 +756,7 @@ catch(e){ webglOK=false; document.getElementById('bg-canvas').style.display='non
 /* ================= UI / DOM ================= */
 function posterMarkup(s,big){
   if(s.image){
-    const soon=(s.status==='soon'&&!big)?`<span class="poster-soon">בקרוב</span>`:'';
+    // real-image posters carry their own art/badges — the site adds only the bottom meta on cards
     const foot=big?'':`<div class="poster-fade img-fade"></div>
       <div class="poster-content">
         <div class="poster-meta"><span class="dot"></span>${s.date} · ${s.time}</div>
@@ -765,14 +765,16 @@ function posterMarkup(s,big){
     return `<div class="poster has-img${big?' big':''}" style="--c1:${s.c1};--c2:${s.c2}">
       <img class="poster-img" src="${s.image}" alt="${s.title}" loading="lazy">
       <div class="poster-sheen"></div>
-      ${soon}${foot}
+      ${foot}
     </div>`;
   }
+  const soon=(s.status==='soon'&&!big)?`<span class="poster-soon">בקרוב</span>`:'';
   return `<div class="poster" style="--c1:${s.c1};--c2:${s.c2}">
     <div class="poster-grid"></div>
     <div class="poster-orbit"></div><div class="poster-orbit two"></div>
     <div class="poster-sheen"></div>
     <div class="poster-fade"></div>
+    ${soon}
     <div class="poster-content">
       <span class="poster-tag">${s.tagline}</span>
       <div class="poster-title">${s.title}</div>
