@@ -250,6 +250,14 @@ body.intro .scroll-cue{animation:rise 1s var(--ease) 1.3s forwards;}
 .poster-cta .arrow{transition:transform .4s var(--ease);}
 .show-card:hover .poster-cta{opacity:1;transform:none;}
 
+/* real-image posters */
+.poster-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;transform:scale(1.02);}
+.poster.has-img.big{background:#070912;}
+.poster.has-img.big .poster-img{object-fit:contain;object-position:center;transform:none;}
+.poster .img-fade{position:absolute;inset:0;z-index:1;background:linear-gradient(to top,rgba(3,4,10,.96) 1%,rgba(3,4,10,.45) 20%,transparent 40%);}
+.poster-soon{position:absolute;top:14px;inset-inline-start:14px;z-index:4;font-family:'Heebo';font-weight:700;font-size:.72rem;
+  padding:6px 13px;border-radius:100px;color:#1a1206;background:linear-gradient(120deg,var(--gold),#ff9d3d);box-shadow:0 4px 16px rgba(255,160,60,.45);}
+
 /* ---------- FOOTER ---------- */
 #contact{padding-bottom:60px;}
 .footer-card{
@@ -292,7 +300,11 @@ body.intro .scroll-cue{animation:rise 1s var(--ease) 1.3s forwards;}
 .modal-tags{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px;}
 .modal-tags span{font-size:.74rem;padding:5px 13px;border-radius:100px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);color:#bdeeff;}
 .modal-title{font-family:'Secular One';font-size:clamp(2rem,4vw,3rem);line-height:1.05;margin-bottom:6px;}
-.modal-tagline{font-family:'Orbitron';font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;color:var(--cyan);margin-bottom:22px;}
+.modal-tagline{font-family:'Orbitron';font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;color:var(--cyan);margin-bottom:14px;}
+.modal-by{font-size:.94rem;color:var(--muted);margin-bottom:20px;}
+.modal-by:empty{display:none;}
+.modal-by b{color:var(--gold);font-weight:600;}
+.price-tag .soon-price{color:var(--gold);}
 .modal-synopsis{color:#c8d3ea;font-weight:300;font-size:1.02rem;}
 .modal-meta{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin-top:26px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;}
 .meta-cell{background:rgba(10,12,22,.6);padding:15px 18px;}
@@ -458,6 +470,7 @@ body.intro .scroll-cue{animation:rise 1s var(--ease) 1.3s forwards;}
       <div class="modal-tags" id="modal-tags"></div>
       <h3 class="modal-title" id="modal-title"></h3>
       <div class="modal-tagline" id="modal-tagline"></div>
+      <div class="modal-by" id="modal-by"></div>
       <p class="modal-synopsis" id="modal-synopsis"></p>
       <div class="modal-meta" id="modal-meta"></div>
       <div class="modal-foot">
@@ -498,21 +511,21 @@ const SHOWS = [
   { id:'nova', iso:'2026-07-12', title:'נוֹבָה', tagline:'אופרת חלל', genre:['דרמה','מדע בדיוני'],
     synopsis:'בקצה הגלקסיה מגלה צוות חלוצים שהכוכב שעליו בנו את ביתם עומד להפוך לסופרנובה. תוך שעות ספורות עליהם להחליט מי יזכה במקום האחרון בחללית המילוט — דרמה אנושית עוצמתית על אהבה, הקרבה והזמן שאוזל.',
     date:'12 ביולי 2026', time:'20:30', duration:'95 דק׳', hall:'אולם הזירה', price:'₪189', c1:'#00e5ff', c2:'#7b5bff' },
-  { id:'echo', iso:'2026-07-18', title:'הֵד הכּוֹכָבִים', tagline:'מחזמר הולוגרפי', genre:['מחזמר','פנטזיה'],
-    synopsis:'נערה שגדלה בתחנת חלל בודדה מגלה שהיא שומעת את "שירת הכוכבים" — תדרים עתיקים שאיש לא שמע מזה דורות. מסע מוזיקלי מסחרר בין נברות זוהרות, עם תזמורת חיה ואפקטים הולוגרפיים שעוטפים את הקהל מכל עבר.',
-    date:'18 ביולי 2026', time:'21:00', duration:'120 דק׳', hall:'האולם הגדול', price:'₪249', c1:'#b14bff', c2:'#ff3df0' },
+  { id:'opera', iso:'2026-09-05', title:'אופרת חלל', tagline:'מחזמר קוסמי', by:'לירוי גודל', status:'soon', image:'assets/opera.jpg', genre:['מחזמר','מדע בדיוני','משפחה'],
+    synopsis:'כשהכוכבים הופכים לשכנים, היקום כולו נעשה במה אחת גדולה. נפטון המלך, מהדים השכן והכלבלב פלוטו יוצאים למסע מוזיקלי מסחרר בין עולמות — עם שירים מקוריים בלייב ותפאורה קוסמית מרהיבה. מחזמר ראוותני לכל המשפחה.',
+    date:'5 בספטמבר 2026', time:'18:00', duration:'110 דק׳', hall:'האולם הגדול', price:'₪249', c1:'#7b5bff', c2:'#ff3df0' },
   { id:'maze', iso:'2026-07-25', title:'מְבוֹךְ הזְּמַן', tagline:'מותחן פסיכולוגי', genre:['מותחן','דרמה'],
     synopsis:'בלש מתעורר בכל בוקר אל אותו היום בדיוק — אך פרט קטן אחד משתנה בכל פעם. ככל שהוא מתקרב לפענוח הרצח, כך נסדקת תפיסת המציאות שלו. מותחן עוצר נשימה על זיכרון, אשמה ולולאות שאי אפשר לשבור.',
     date:'25 ביולי 2026', time:'20:00', duration:'105 דק׳', hall:'אולם הקאמרי', price:'₪199', c1:'#00e5ff', c2:'#00ffa3' },
-  { id:'heart', iso:'2026-08-02', title:'לֵב מְלָאכוּתִי', tagline:'דרמה', genre:['דרמה','רומן'],
-    synopsis:'מהנדסת בודדה מעניקה לבינה מלאכותית את זיכרונותיו של בעלה שנפטר. ככל שהמכונה לומדת לאהוב, מיטשטש הגבול בין נחמה לאשליה. יצירה מכמירת לב על אובדן, תודעה ועל מה שהופך אותנו לאנושיים.',
-    date:'2 באוגוסט 2026', time:'20:30', duration:'90 דק׳', hall:'אולם הזירה', price:'₪189', c1:'#ff6a3d', c2:'#ff3df0' },
+  { id:'sabta', iso:'2026-07-04', title:'סבתא שלי כל הזמן בסיפורים!', tagline:'הצגת ילדים', by:'לירוי גודל', image:'assets/sabta.jpg', genre:['ילדים','משפחה','פנטזיה'],
+    synopsis:'כשסבתא פותחת ספר, הדמויות פשוט קופצות מהדפים: שועל שובב, דרקון ירוק, נסיכה אמיצה ופיראטים שמפליגים אל ההרפתקה. מופע ילדים מקסים על הקסם שבסיפור, על כוח הדמיון ועל החוט שמחבר בין הדורות.',
+    date:'4 ביולי 2026', time:'11:00', duration:'60 דק׳', hall:'אולם הקאמרי', price:'₪140', c1:'#2f6f8f', c2:'#cf9a4a' },
   { id:'shadows', iso:'2026-08-09', title:'מַמְלֶכֶת הצְּלָלִים', tagline:'אפוס פנטזיה', genre:['פנטזיה','הרפתקה'],
     synopsis:'נסיך גולה חוזר אל ממלכה שנבלעה בחושך כדי לתבוע בחזרה את כס האור. אפוס ראוותני עם תפאורה ענקית, להטוטי אש ואור ומקהלה שתסחף אתכם אל ממלכה שמעולם לא ראיתם.',
     date:'9 באוגוסט 2026', time:'19:30', duration:'135 דק׳', hall:'האולם הגדול', price:'₪269', c1:'#ffb43d', c2:'#ff3df0' },
-  { id:'lights', iso:'2026-08-16', title:'אוֹרוֹת אַחֲרוֹנִים', tagline:'דרמה קאמרית', genre:['דרמה'],
-    synopsis:'בליל הכיבוי הגדול, כשהעיר כולה שוקעת לחשכה, נפגשים חמישה זרים על גג אחד. במשך לילה אחד בלבד הם חולקים סודות, פחדים וחלומות — לפני שהאורות יידלקו שוב ויאלצו אותם לחזור לחייהם.',
-    date:'16 באוגוסט 2026', time:'21:00', duration:'80 דק׳', hall:'אולם הקאמרי', price:'₪169', c1:'#7b5bff', c2:'#00e5ff' },
+  { id:'anavim', iso:'2026-07-05', title:'אֵלִי עֲנָבִים', tagline:'הרפתקת ילדים', image:'assets/anavim.jpg', genre:['ילדים','הרפתקה','קומדיה'],
+    synopsis:'אלי ענבים וחבריו יוצאים להרפתקאות בלתי-נשכחות בשכונה — טיפוס על עצים, רכיבה על חמור, מרדפים ומשובות אינסופיות. הצגת ילדים מלאת הומור, חברוּת ונוסטלגיה, וכל ההרפתקאות… באמת קרו (פחות או יותר).',
+    date:'5 ביולי 2026', time:'11:30', duration:'70 דק׳', hall:'אולם הזירה', price:'₪140', c1:'#4a90c2', c2:'#e8c34a' },
 ];
 
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -742,6 +755,19 @@ catch(e){ webglOK=false; document.getElementById('bg-canvas').style.display='non
 
 /* ================= UI / DOM ================= */
 function posterMarkup(s,big){
+  if(s.image){
+    const soon=(s.status==='soon'&&!big)?`<span class="poster-soon">בקרוב</span>`:'';
+    const foot=big?'':`<div class="poster-fade img-fade"></div>
+      <div class="poster-content">
+        <div class="poster-meta"><span class="dot"></span>${s.date} · ${s.time}</div>
+        <div class="poster-cta">פרטים והזמנה <span class="arrow">←</span></div>
+      </div>`;
+    return `<div class="poster has-img${big?' big':''}" style="--c1:${s.c1};--c2:${s.c2}">
+      <img class="poster-img" src="${s.image}" alt="${s.title}" loading="lazy">
+      <div class="poster-sheen"></div>
+      ${soon}${foot}
+    </div>`;
+  }
   return `<div class="poster" style="--c1:${s.c1};--c2:${s.c2}">
     <div class="poster-grid"></div>
     <div class="poster-orbit"></div><div class="poster-orbit two"></div>
@@ -861,13 +887,21 @@ function openShow(id){
   document.getElementById('modal-tags').innerHTML=s.genre.map(g=>`<span>${g}</span>`).join('');
   document.getElementById('modal-title').textContent=s.title;
   document.getElementById('modal-tagline').textContent=s.tagline;
+  document.getElementById('modal-by').innerHTML = s.by ? 'מאת <b>'+s.by+'</b>' : '';
   document.getElementById('modal-synopsis').textContent=s.synopsis;
   document.getElementById('modal-meta').innerHTML=`
     <div class="meta-cell"><div class="k">תאריך</div><div class="v">${s.date}</div></div>
     <div class="meta-cell"><div class="k">שעה</div><div class="v">${s.time}</div></div>
     <div class="meta-cell"><div class="k">משך</div><div class="v">${s.duration}</div></div>
     <div class="meta-cell"><div class="k">אולם</div><div class="v">${s.hall}</div></div>`;
-  document.getElementById('modal-price').innerHTML=`${s.price}<small>החל מ־</small>`;
+  const bookBtn=document.getElementById('modal-book');
+  if(s.status==='soon'){
+    document.getElementById('modal-price').innerHTML='<span class="soon-price">בקרוב</span><small>הכרטיסים בדרך</small>';
+    bookBtn.innerHTML='<span class="glow"></span>קבל עדכון'; bookBtn.dataset.soon='1';
+  }else{
+    document.getElementById('modal-price').innerHTML=`${s.price}<small>החל מ־</small>`;
+    bookBtn.innerHTML='<span class="glow"></span>הזמן כרטיסים'; bookBtn.dataset.soon='';
+  }
   modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
   document.body.classList.add('locked');
   // tint background to show palette
@@ -880,7 +914,10 @@ function closeShow(){
   if(lastFocus) lastFocus.focus();
 }
 modal.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click',closeShow));
-document.getElementById('modal-book').addEventListener('click',()=>toast('בקרוב — <b>מערכת הזמנות</b> מקוונת'));
+document.getElementById('modal-book').addEventListener('click',(e)=>{
+  if(e.currentTarget.dataset.soon==='1') toast('ההצגה <b>עדיין בהכנה</b> — נעדכן אותך בקרוב!');
+  else toast('בקרוב — <b>מערכת הזמנות</b> מקוונת');
+});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))closeShow();});
 
 /* ---- Toast ---- */
