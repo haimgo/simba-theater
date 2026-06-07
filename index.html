@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="תיאטרון סימבה — חוויית במה הולוגרפית. גלריית ההצגות של העונה ביקום דיגיטלי סוחף." />
+<title>תיאטרון סימבה — יקום הבמה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&family=Secular+One&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   תיאטרון סימבה — Holographic Theater
+   Single-file immersive experience
+   ============================================================ */
+:root{
+  --bg:#04050a;
+  --bg2:#080a16;
+  --cyan:#00e5ff;
+  --violet:#7b5bff;
+  --magenta:#ff3df0;
+  --gold:#ffcf5c;
+  --text:#eaf2ff;
+  --muted:#8b97b8;
+  --glass:rgba(255,255,255,.05);
+  --glass-brd:rgba(255,255,255,.14);
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;overflow-x:hidden;}
+@media (pointer:fine){ html{cursor:none;} }
+
+body{
+  font-family:'Heebo',system-ui,sans-serif;
+  background:
+    radial-gradient(1200px 800px at 80% -10%, rgba(123,91,255,.18), transparent 60%),
+    radial-gradient(1000px 700px at 10% 110%, rgba(255,61,240,.12), transparent 60%),
+    var(--bg);
+  color:var(--text);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+body.locked{overflow:hidden;}
+
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:inherit;border:none;background:none;color:inherit;}
+::selection{background:rgba(0,229,255,.3);color:#fff;}
+
+/* ---------- Background canvas ---------- */
+#bg-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;}
+
+/* ---------- Cinematic overlays ---------- */
+.overlay-vignette{
+  position:fixed;inset:0;z-index:3;pointer-events:none;
+  background:radial-gradient(120% 120% at 50% 50%, transparent 55%, rgba(0,0,0,.55) 100%);
+}
+.overlay-grain{
+  position:fixed;inset:-50%;z-index:3;pointer-events:none;opacity:.045;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain 6s steps(6) infinite;
+}
+.overlay-scan{
+  position:fixed;inset:0;z-index:3;pointer-events:none;opacity:.4;
+  background:repeating-linear-gradient(to bottom, rgba(255,255,255,.025) 0, rgba(255,255,255,.025) 1px, transparent 1px, transparent 3px);
+  mix-blend-mode:overlay;
+}
+@keyframes grain{
+  0%{transform:translate(0,0)}10%{transform:translate(-3%,-4%)}30%{transform:translate(4%,-2%)}
+  50%{transform:translate(-2%,3%)}70%{transform:translate(3%,2%)}90%{transform:translate(-4%,-1%)}100%{transform:translate(0,0)}
+}
+
+/* ---------- Custom cursor ---------- */
+.cursor-dot,.cursor-ring{position:fixed;left:0;top:0;z-index:9998;pointer-events:none;border-radius:50%;transform:translate(-50%,-50%);will-change:transform;}
+.cursor-dot{width:6px;height:6px;background:var(--cyan);box-shadow:0 0 12px var(--cyan);}
+.cursor-ring{width:34px;height:34px;border:1px solid rgba(255,255,255,.45);transition:width .25s var(--ease),height .25s var(--ease),border-color .25s,background .25s;}
+.cursor-ring.hover{width:60px;height:60px;border-color:var(--cyan);background:rgba(0,229,255,.07);}
+.cursor-ring.down{width:26px;height:26px;}
+@media (pointer:coarse){.cursor-dot,.cursor-ring{display:none;}}
+
+/* ---------- Loader / boot ---------- */
+#loader{position:fixed;inset:0;z-index:10000;background:var(--bg);display:grid;place-items:center;transition:opacity .8s ease,visibility .8s;}
+#loader.done{opacity:0;visibility:hidden;}
+.loader-inner{text-align:center;width:min(80vw,300px);}
+.loader-mark{font-family:'Secular One';font-size:1.6rem;letter-spacing:.04em;color:#fff;
+  background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.loader-sub{font-family:'Orbitron';font-size:.62rem;letter-spacing:.45em;color:var(--muted);margin-top:10px;text-transform:uppercase;}
+.bar{margin-top:22px;height:2px;width:100%;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;}
+.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--violet),var(--magenta));box-shadow:0 0 14px var(--cyan);transition:width .2s linear;}
+.loader-pct{font-family:'Orbitron';font-size:.65rem;color:var(--muted);margin-top:10px;letter-spacing:.2em;}
+
+/* ---------- Header ---------- */
+header{
+  position:fixed;top:0;inset-inline:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+  padding:18px clamp(18px,4vw,46px);
+  transition:background .4s,backdrop-filter .4s,padding .4s,border-color .4s;
+  border-bottom:1px solid transparent;
+}
+header.scrolled{
+  background:rgba(6,8,18,.55);backdrop-filter:blur(16px) saturate(140%);
+  border-bottom:1px solid rgba(255,255,255,.07);padding-top:12px;padding-bottom:12px;
+}
+.logo{display:flex;align-items:center;gap:11px;font-family:'Secular One';font-size:1.25rem;color:#fff;}
+.logo .orb{width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--cyan) 45%,var(--violet));box-shadow:0 0 16px var(--cyan),0 0 30px var(--violet);animation:pulse 3s ease-in-out infinite;}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.25);opacity:.75}}
+.nav{display:flex;gap:30px;align-items:center;}
+.nav a{font-size:.92rem;color:var(--muted);position:relative;transition:color .3s;letter-spacing:.01em;}
+.nav a::after{content:"";position:absolute;inset-inline:0;bottom:-6px;height:1px;background:linear-gradient(90deg,var(--cyan),var(--magenta));transform:scaleX(0);transform-origin:right;transition:transform .4s var(--ease);}
+.nav a:hover{color:#fff;}
+.nav a:hover::after{transform:scaleX(1);}
+.btn{
+  position:relative;display:inline-flex;align-items:center;gap:9px;
+  padding:11px 22px;border-radius:100px;font-weight:500;font-size:.9rem;color:#fff;
+  background:linear-gradient(120deg,rgba(0,229,255,.16),rgba(255,61,240,.16));
+  border:1px solid rgba(255,255,255,.18);overflow:hidden;transition:transform .3s var(--ease),box-shadow .3s;
+  box-shadow:0 0 0 rgba(0,229,255,0);
+}
+.btn:hover{box-shadow:0 6px 30px rgba(0,229,255,.25),0 0 0 1px rgba(0,229,255,.4) inset;}
+.btn .glow{position:absolute;inset:0;background:linear-gradient(120deg,transparent,rgba(255,255,255,.35),transparent);transform:translateX(-120%);}
+.btn:hover .glow{transform:translateX(120%);transition:transform .8s var(--ease);}
+.btn-gold{background:linear-gradient(120deg,rgba(255,207,92,.22),rgba(255,61,240,.18));}
+
+@media (max-width:780px){ .nav{display:none;} }
+
+/* ---------- Layout shell ---------- */
+main{position:relative;z-index:2;}
+section{position:relative;padding:clamp(70px,12vh,150px) clamp(20px,5vw,80px);}
+.label{font-family:'Orbitron';font-size:.66rem;letter-spacing:.42em;color:var(--cyan);text-transform:uppercase;display:inline-flex;align-items:center;gap:12px;margin-bottom:18px;}
+.label::before{content:"";width:34px;height:1px;background:linear-gradient(90deg,var(--cyan),transparent);}
+.h-title{font-family:'Secular One';line-height:1.05;}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(46px);transition:opacity 1s var(--ease),transform 1.1s var(--ease);}
+.reveal.in{opacity:1;transform:none;}
+.reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}.reveal.d4{transition-delay:.32s}
+
+/* ---------- HERO ---------- */
+#hero{min-height:100vh;display:grid;place-items:center;text-align:center;padding-top:120px;}
+.hero-wrap{max-width:1000px;}
+.hero-kicker{font-family:'Orbitron';font-size:.72rem;letter-spacing:.5em;color:var(--muted);text-transform:uppercase;margin-bottom:26px;opacity:0;}
+.hero-title{
+  font-family:'Secular One';font-size:clamp(3.4rem,15vw,11rem);line-height:.92;letter-spacing:-.01em;
+  color:#eef6ff;
+  text-shadow:0 0 32px rgba(0,229,255,.5),0 0 78px rgba(123,91,255,.45),0 4px 34px rgba(0,0,0,.45);
+}
+.hero-title .b{display:block;}
+.hero-sub{margin:30px auto 0;max-width:560px;font-size:clamp(1rem,2.2vw,1.22rem);color:#c4cfe6;font-weight:300;opacity:0;}
+.hero-cta{margin-top:42px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;opacity:0;}
+.scroll-cue{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);font-family:'Orbitron';font-size:.6rem;letter-spacing:.35em;opacity:0;}
+.scroll-cue .line{width:1px;height:46px;background:linear-gradient(var(--cyan),transparent);position:relative;overflow:hidden;}
+.scroll-cue .line::after{content:"";position:absolute;top:-50%;left:0;width:100%;height:50%;background:linear-gradient(var(--cyan),transparent);animation:drop 1.8s ease-in-out infinite;}
+@keyframes drop{0%{top:-50%}100%{top:100%}}
+
+/* hero intro animation */
+body.intro .hero-kicker{animation:rise .9s var(--ease) .1s forwards;}
+body.intro .hero-title .b{opacity:0;animation:rise 1.1s var(--ease) forwards;}
+body.intro .hero-title .b:nth-child(1){animation-delay:.25s;}
+body.intro .hero-title .b:nth-child(2){animation-delay:.42s;}
+body.intro .hero-sub{animation:rise 1s var(--ease) .7s forwards;}
+body.intro .hero-cta{animation:rise 1s var(--ease) .9s forwards;}
+body.intro .scroll-cue{animation:rise 1s var(--ease) 1.3s forwards;}
+@keyframes rise{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+
+/* ---------- ABOUT ---------- */
+#about{text-align:center;}
+.about-line{font-family:'Secular One';font-size:clamp(1.6rem,4.6vw,3.4rem);line-height:1.25;max-width:920px;margin:0 auto;}
+.about-line .accent{background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.chips{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:48px;}
+.chip{
+  padding:16px 26px;border-radius:16px;background:var(--glass);border:1px solid var(--glass-brd);
+  backdrop-filter:blur(12px);text-align:center;min-width:150px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 12px 40px rgba(0,0,0,.35);
+}
+.chip .n{font-family:'Orbitron';font-size:1.5rem;font-weight:700;color:#fff;display:block;}
+.chip .t{font-size:.82rem;color:var(--muted);margin-top:4px;display:block;}
+
+/* ---------- SHOWS ---------- */
+#shows .shows-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:54px;}
+#shows .h-title{font-size:clamp(2.4rem,6vw,4.6rem);}
+#shows .lead{max-width:420px;color:var(--muted);font-weight:300;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:28px;}
+/* 3-layer card so float / tilt / filter each own a separate transform */
+.show-card{
+  position:relative;aspect-ratio:3/4;border-radius:20px;cursor:inherit;
+  transition:opacity .45s var(--ease),transform .5s var(--ease);
+}
+.show-card.hide{opacity:0;transform:scale(.86);pointer-events:none;}
+.show-card__float{position:absolute;inset:0;perspective:1000px;animation:floaty 7s ease-in-out infinite;}
+.show-card:nth-child(2n) .show-card__float{animation-duration:8.5s;animation-delay:-2s;}
+.show-card:nth-child(3n) .show-card__float{animation-duration:9.5s;animation-delay:-4s;}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+.show-card__tilt{
+  position:absolute;inset:0;border-radius:20px;overflow:hidden;
+  border:1px solid var(--glass-brd);background:#0a0c18;box-shadow:0 18px 50px rgba(0,0,0,.5);
+  transform-style:preserve-3d;transition:transform .35s var(--ease),box-shadow .5s;
+}
+.show-card:hover .show-card__tilt{box-shadow:0 30px 70px rgba(0,0,0,.6),0 0 0 1px rgba(0,229,255,.4) inset,0 0 50px rgba(0,229,255,.18);}
+
+/* ---- Filter bar ---- */
+.filters{
+  margin-bottom:22px;padding:20px;border-radius:20px;display:flex;flex-direction:column;gap:16px;
+  background:var(--glass);border:1px solid var(--glass-brd);backdrop-filter:blur(14px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 16px 50px rgba(0,0,0,.35);
+}
+.filter-search{position:relative;display:flex;align-items:center;}
+.filter-search .fs-icon{position:absolute;inset-inline-start:16px;color:var(--cyan);pointer-events:none;}
+.filter-search input{
+  width:100%;padding:14px 48px;border-radius:14px;font-family:inherit;font-size:1rem;color:var(--text);
+  background:rgba(4,6,14,.6);border:1px solid var(--glass-brd);transition:border-color .3s,box-shadow .3s;
+}
+.filter-search input::placeholder{color:var(--muted);}
+.filter-search input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,.12),0 0 26px rgba(0,229,255,.16);}
+.fs-clear{position:absolute;inset-inline-end:14px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+  color:var(--muted);background:rgba(255,255,255,.06);font-size:.78rem;opacity:0;pointer-events:none;transition:.25s;}
+.fs-clear.show{opacity:1;pointer-events:auto;}
+.fs-clear:hover{color:#fff;background:rgba(255,61,240,.25);}
+.filter-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.filter-label{font-family:'Orbitron';font-size:.6rem;letter-spacing:.2em;color:var(--cyan);text-transform:uppercase;min-width:42px;}
+.chips-row{display:flex;gap:9px;flex-wrap:wrap;}
+.fchip{padding:8px 16px;border-radius:100px;font-size:.86rem;color:var(--muted);background:rgba(255,255,255,.04);
+  border:1px solid var(--glass-brd);transition:.3s var(--ease);}
+.fchip:hover{color:#fff;border-color:rgba(0,229,255,.4);}
+.fchip.active{color:#fff;border-color:transparent;background:linear-gradient(120deg,rgba(0,229,255,.25),rgba(123,91,255,.25));
+  box-shadow:0 0 0 1px rgba(0,229,255,.5) inset,0 0 22px rgba(0,229,255,.2);}
+.shows-count{font-family:'Orbitron';font-size:.7rem;letter-spacing:.16em;color:var(--muted);margin-bottom:24px;}
+.no-results{text-align:center;padding:46px 20px;color:var(--muted);}
+.no-results p{font-size:1.1rem;margin-bottom:18px;}
+
+/* procedural poster */
+.poster{position:absolute;inset:0;overflow:hidden;background:linear-gradient(155deg,var(--c1),var(--c2));}
+.poster::before{content:"";position:absolute;inset:0;background:
+  radial-gradient(60% 40% at 28% 18%, rgba(255,255,255,.55), transparent 55%),
+  radial-gradient(70% 60% at 85% 95%, rgba(0,0,0,.45), transparent 60%);}
+.poster-grid{position:absolute;inset:0;opacity:.22;mix-blend-mode:overlay;
+  background-image:linear-gradient(rgba(255,255,255,.7) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.7) 1px,transparent 1px);
+  background-size:30px 30px;
+  -webkit-mask-image:radial-gradient(120% 90% at 50% 0%,#000,transparent 75%);mask-image:radial-gradient(120% 90% at 50% 0%,#000,transparent 75%);}
+.poster-orbit{position:absolute;width:120%;aspect-ratio:1;border:1px solid rgba(255,255,255,.25);border-radius:50%;top:-30%;left:-10%;mix-blend-mode:screen;}
+.poster-orbit.two{width:80%;top:30%;left:30%;border-color:rgba(255,255,255,.18);}
+.poster-sheen{position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.32) 48%,transparent 62%);transform:translateX(-120%);}
+.show-card:hover .poster-sheen{transform:translateX(120%);transition:transform 1s var(--ease);}
+.poster-fade{position:absolute;inset:0;background:linear-gradient(to top,rgba(3,4,10,.92) 4%,rgba(3,4,10,.35) 40%,transparent 70%);}
+.poster-content{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:22px;z-index:2;}
+.poster-tag{align-self:flex-start;font-family:'Orbitron';font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;padding:5px 11px;border-radius:100px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(4px);margin-bottom:auto;}
+.poster-title{font-family:'Secular One';font-size:clamp(1.5rem,2vw,2rem);color:#fff;line-height:1.05;text-shadow:0 2px 20px rgba(0,0,0,.6);}
+.poster-meta{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:.82rem;color:#dbe4f7;}
+.poster-meta .dot{width:4px;height:4px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);}
+.poster-cta{margin-top:16px;font-size:.8rem;color:#fff;display:inline-flex;align-items:center;gap:8px;opacity:0;transform:translateY(8px);transition:.4s var(--ease);}
+.poster-cta .arrow{transition:transform .4s var(--ease);}
+.show-card:hover .poster-cta{opacity:1;transform:none;}
+
+/* ---------- FOOTER ---------- */
+#contact{padding-bottom:60px;}
+.footer-card{
+  position:relative;border-radius:28px;padding:clamp(34px,6vw,70px);overflow:hidden;
+  background:var(--glass);border:1px solid var(--glass-brd);backdrop-filter:blur(16px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 30px 80px rgba(0,0,0,.5);
+}
+.footer-card::before{content:"";position:absolute;top:-40%;inset-inline-end:-10%;width:50%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(123,91,255,.4),transparent 65%);filter:blur(20px);}
+.footer-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:40px;position:relative;z-index:2;}
+.footer-big{font-family:'Secular One';font-size:clamp(2rem,5vw,3.6rem);line-height:1.1;}
+.footer-big .accent{background:linear-gradient(90deg,var(--gold),var(--magenta));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.footer-info{display:flex;flex-direction:column;gap:16px;font-size:.96rem;}
+.info-row{display:flex;flex-direction:column;gap:2px;}
+.info-row .k{font-family:'Orbitron';font-size:.6rem;letter-spacing:.25em;color:var(--cyan);text-transform:uppercase;}
+.info-row .v{color:#dbe4f7;}
+.socials{display:flex;gap:14px;margin-top:6px;flex-wrap:wrap;}
+.socials a{padding:8px 16px;border-radius:100px;border:1px solid var(--glass-brd);background:rgba(255,255,255,.04);font-size:.85rem;transition:.3s;}
+.socials a:hover{border-color:var(--cyan);color:#fff;background:rgba(0,229,255,.08);}
+.footer-cta{margin-top:36px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative;z-index:2;}
+.credit{margin-top:40px;text-align:center;color:var(--muted);font-size:.78rem;letter-spacing:.03em;}
+@media (max-width:760px){.footer-grid{grid-template-columns:1fr;}}
+
+/* ---------- MODAL ---------- */
+#modal{position:fixed;inset:0;z-index:500;display:grid;place-items:center;padding:clamp(14px,4vw,40px);opacity:0;pointer-events:none;transition:opacity .5s var(--ease);}
+#modal.open{opacity:1;pointer-events:auto;}
+.modal-backdrop{position:absolute;inset:0;background:rgba(2,3,9,.55);backdrop-filter:blur(3px);transition:backdrop-filter .6s;}
+#modal.open .modal-backdrop{backdrop-filter:blur(12px);}
+.modal-card{
+  position:relative;width:min(1000px,100%);max-height:90vh;overflow:hidden;border-radius:26px;
+  display:grid;grid-template-columns:0.92fr 1.08fr;
+  background:linear-gradient(150deg,rgba(20,24,42,.85),rgba(8,10,20,.9));
+  border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(20px) saturate(140%);
+  box-shadow:0 40px 120px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.14);
+  transform:scale(.9) translateY(28px);opacity:0;transition:transform .6s var(--ease),opacity .5s var(--ease);
+}
+#modal.open .modal-card{transform:none;opacity:1;}
+.modal-poster{position:relative;min-height:340px;}
+.modal-poster .poster-title{font-size:clamp(1.8rem,3vw,2.6rem);}
+.modal-body{padding:clamp(26px,3vw,44px);overflow-y:auto;display:flex;flex-direction:column;}
+.modal-tags{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px;}
+.modal-tags span{font-size:.74rem;padding:5px 13px;border-radius:100px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);color:#bdeeff;}
+.modal-title{font-family:'Secular One';font-size:clamp(2rem,4vw,3rem);line-height:1.05;margin-bottom:6px;}
+.modal-tagline{font-family:'Orbitron';font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;color:var(--cyan);margin-bottom:22px;}
+.modal-synopsis{color:#c8d3ea;font-weight:300;font-size:1.02rem;}
+.modal-meta{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin-top:26px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;}
+.meta-cell{background:rgba(10,12,22,.6);padding:15px 18px;}
+.meta-cell .k{font-family:'Orbitron';font-size:.56rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;}
+.meta-cell .v{font-size:1.02rem;color:#fff;margin-top:3px;font-weight:500;}
+.modal-foot{margin-top:auto;padding-top:26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.price-tag{font-family:'Orbitron';font-size:1.4rem;font-weight:700;color:#fff;}
+.price-tag small{font-size:.62rem;color:var(--muted);display:block;letter-spacing:.2em;}
+.modal-close{position:absolute;top:16px;inset-inline-start:16px;z-index:5;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:rgba(8,10,20,.6);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(8px);font-size:1.2rem;transition:.3s;}
+.modal-close:hover{background:rgba(255,61,240,.2);border-color:var(--magenta);transform:rotate(90deg);}
+@media (max-width:740px){
+  .modal-card{grid-template-columns:1fr;max-height:92vh;overflow-y:auto;}
+  .modal-poster{min-height:260px;}
+}
+
+/* ---------- Toast ---------- */
+#toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(40px);z-index:9000;
+  padding:14px 26px;border-radius:100px;background:rgba(8,10,20,.85);border:1px solid var(--glass-brd);backdrop-filter:blur(14px);
+  color:#fff;font-size:.92rem;opacity:0;pointer-events:none;transition:.5s var(--ease);box-shadow:0 12px 40px rgba(0,0,0,.5);}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast b{background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;}
+  .reveal{opacity:1 !important;transform:none !important;}
+  html{scroll-behavior:auto;}
+  .scroll-cue .line::after{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- Boot loader -->
+<div id="loader">
+  <div class="loader-inner">
+    <div class="loader-mark">תיאטרון סימבה</div>
+    <div class="loader-sub">Initializing&nbsp;Universe</div>
+    <div class="bar"><i></i></div>
+    <div class="loader-pct">0%</div>
+  </div>
+</div>
+
+<!-- 3D background -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- Cinematic overlays -->
+<div class="overlay-grain"></div>
+<div class="overlay-scan"></div>
+<div class="overlay-vignette"></div>
+
+<!-- Custom cursor -->
+<div class="cursor-ring"></div>
+<div class="cursor-dot"></div>
+
+<!-- Header -->
+<header>
+  <a class="logo" href="#hero" data-cursor><span class="orb"></span> תיאטרון סימבה</a>
+  <nav class="nav">
+    <a href="#about">החוויה</a>
+    <a href="#shows">ההצגות</a>
+    <a href="#contact">צור קשר</a>
+  </nav>
+  <button class="btn btn-gold" data-cursor onclick="document.getElementById('shows').scrollIntoView()">
+    <span class="glow"></span>כרטיסים
+  </button>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section id="hero">
+    <div class="hero-wrap">
+      <div class="hero-kicker">Holographic Stage · עונת 2026</div>
+      <h1 class="hero-title"><span class="b">תיאטרון</span><span class="b">סימבה</span></h1>
+      <p class="hero-sub">היכנסו אל יקום הבמה. כל הצגה היא עולם בפני עצמו — אור, צליל ודמיון שמתעוררים לחיים בחוויה הולוגרפית סוחפת.</p>
+      <div class="hero-cta">
+        <button class="btn" data-cursor onclick="document.getElementById('shows').scrollIntoView()"><span class="glow"></span>גלו את ההצגות</button>
+        <button class="btn" data-cursor onclick="document.getElementById('about').scrollIntoView()" style="background:rgba(255,255,255,.04)"><span class="glow"></span>על התיאטרון</button>
+      </div>
+    </div>
+    <div class="scroll-cue"><span>גלול</span><span class="line"></span></div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about">
+    <div class="reveal" style="text-align:center"><span class="label" style="justify-content:center">01 / The Experience</span></div>
+    <p class="about-line reveal d1">לא רק במה — <span class="accent">פורטל</span> אל סיפורים שמרחפים בין מציאות לדמיון.</p>
+    <div class="chips">
+      <div class="chip reveal d1"><span class="n">6</span><span class="t">הצגות בעונה</span></div>
+      <div class="chip reveal d2"><span class="n">3</span><span class="t">אולמות Immersive</span></div>
+      <div class="chip reveal d3"><span class="n">360°</span><span class="t">סאונד & אור</span></div>
+      <div class="chip reveal d4"><span class="n">∞</span><span class="t">עולמות לגלות</span></div>
+    </div>
+  </section>
+
+  <!-- SHOWS -->
+  <section id="shows">
+    <div class="shows-head">
+      <div class="reveal">
+        <span class="label">02 / Repertoire</span>
+        <h2 class="h-title">ההצגות<br>של העונה</h2>
+      </div>
+      <p class="lead reveal d2">בחרו הצגה כדי להיכנס אל תוכה — לחצו על כל פוסטר וצללו אל הפרטים, התאריכים והכרטיסים.</p>
+    </div>
+    <div class="filters reveal d1">
+      <div class="filter-search">
+        <svg class="fs-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>
+        <input id="search" type="text" inputmode="search" placeholder="חיפוש הצגה, ז׳אנר או תיאור…" aria-label="חיפוש הצגות" data-cursor />
+        <button id="search-clear" class="fs-clear" data-cursor aria-label="נקה חיפוש">✕</button>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">ז׳אנר</span>
+        <div class="chips-row" id="genre-chips"></div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">מתי</span>
+        <div class="chips-row" id="month-chips"></div>
+      </div>
+    </div>
+    <div class="shows-count" id="shows-count"></div>
+    <div class="grid" id="shows-grid"></div>
+    <div class="no-results" id="no-results" hidden>
+      <p>לא נמצאו הצגות שתואמות את הסינון.</p>
+      <button class="btn" data-cursor id="clear-filters"><span class="glow"></span>נקה סינון</button>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact">
+    <div class="footer-card reveal">
+      <div class="footer-grid">
+        <div>
+          <span class="label">03 / Connect</span>
+          <h2 class="footer-big">מוכנים<br>ל<span class="accent">חוויה</span>?</h2>
+          <div class="footer-cta">
+            <button class="btn btn-gold" data-cursor onclick="document.getElementById('shows').scrollIntoView()"><span class="glow"></span>הזמינו כרטיסים</button>
+            <div class="socials">
+              <a href="#" data-cursor>Instagram</a>
+              <a href="#" data-cursor>Facebook</a>
+              <a href="#" data-cursor>YouTube</a>
+            </div>
+          </div>
+        </div>
+        <div class="footer-info">
+          <div class="info-row"><span class="k">Location</span><span class="v">רחוב הכוכבים 12, תל אביב</span></div>
+          <div class="info-row"><span class="k">Box Office</span><span class="v">03-123-4567</span></div>
+          <div class="info-row"><span class="k">Hours</span><span class="v">א׳–ה׳ · 10:00–20:00</span></div>
+          <div class="info-row"><span class="k">Email</span><span class="v">hello@simba-theater.co.il</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="credit">עוצב ונבנה כחוויית ראווה · תיאטרון סימבה © 2026</p>
+  </section>
+</main>
+
+<!-- MODAL -->
+<div id="modal" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card">
+    <button class="modal-close" data-close data-cursor aria-label="סגור">✕</button>
+    <div class="modal-poster" id="modal-poster"></div>
+    <div class="modal-body">
+      <div class="modal-tags" id="modal-tags"></div>
+      <h3 class="modal-title" id="modal-title"></h3>
+      <div class="modal-tagline" id="modal-tagline"></div>
+      <p class="modal-synopsis" id="modal-synopsis"></p>
+      <div class="modal-meta" id="modal-meta"></div>
+      <div class="modal-foot">
+        <div class="price-tag" id="modal-price"></div>
+        <button class="btn btn-gold" data-cursor id="modal-book"><span class="glow"></span>הזמן כרטיסים</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Safety watchdog: if the ES module below never executes (CDN failure or
+     a browser blocking module loads over file://), don't leave the boot
+     loader stuck — fade it out so the static content is still usable. -->
+<script>
+  window.__simbaReady = false;
+  setTimeout(function () {
+    if (!window.__simbaReady) {
+      var l = document.getElementById('loader');
+      if (l) { l.style.transition = 'opacity .6s'; l.style.opacity = '0';
+               setTimeout(function () { l.style.display = 'none'; }, 650); }
+    }
+  }, 8000);
+</script>
+
+<!-- ============ Three.js ============ -->
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+window.__simbaReady = true; // module executed — cancel the safety watchdog
+
+/* ---------------- DATA (sample — swap for real shows) ---------------- */
+const SHOWS = [
+  { id:'nova', iso:'2026-07-12', title:'נוֹבָה', tagline:'אופרת חלל', genre:['דרמה','מדע בדיוני'],
+    synopsis:'בקצה הגלקסיה מגלה צוות חלוצים שהכוכב שעליו בנו את ביתם עומד להפוך לסופרנובה. תוך שעות ספורות עליהם להחליט מי יזכה במקום האחרון בחללית המילוט — דרמה אנושית עוצמתית על אהבה, הקרבה והזמן שאוזל.',
+    date:'12 ביולי 2026', time:'20:30', duration:'95 דק׳', hall:'אולם הזירה', price:'₪189', c1:'#00e5ff', c2:'#7b5bff' },
+  { id:'echo', iso:'2026-07-18', title:'הֵד הכּוֹכָבִים', tagline:'מחזמר הולוגרפי', genre:['מחזמר','פנטזיה'],
+    synopsis:'נערה שגדלה בתחנת חלל בודדה מגלה שהיא שומעת את "שירת הכוכבים" — תדרים עתיקים שאיש לא שמע מזה דורות. מסע מוזיקלי מסחרר בין נברות זוהרות, עם תזמורת חיה ואפקטים הולוגרפיים שעוטפים את הקהל מכל עבר.',
+    date:'18 ביולי 2026', time:'21:00', duration:'120 דק׳', hall:'האולם הגדול', price:'₪249', c1:'#b14bff', c2:'#ff3df0' },
+  { id:'maze', iso:'2026-07-25', title:'מְבוֹךְ הזְּמַן', tagline:'מותחן פסיכולוגי', genre:['מותחן','דרמה'],
+    synopsis:'בלש מתעורר בכל בוקר אל אותו היום בדיוק — אך פרט קטן אחד משתנה בכל פעם. ככל שהוא מתקרב לפענוח הרצח, כך נסדקת תפיסת המציאות שלו. מותחן עוצר נשימה על זיכרון, אשמה ולולאות שאי אפשר לשבור.',
+    date:'25 ביולי 2026', time:'20:00', duration:'105 דק׳', hall:'אולם הקאמרי', price:'₪199', c1:'#00e5ff', c2:'#00ffa3' },
+  { id:'heart', iso:'2026-08-02', title:'לֵב מְלָאכוּתִי', tagline:'דרמה', genre:['דרמה','רומן'],
+    synopsis:'מהנדסת בודדה מעניקה לבינה מלאכותית את זיכרונותיו של בעלה שנפטר. ככל שהמכונה לומדת לאהוב, מיטשטש הגבול בין נחמה לאשליה. יצירה מכמירת לב על אובדן, תודעה ועל מה שהופך אותנו לאנושיים.',
+    date:'2 באוגוסט 2026', time:'20:30', duration:'90 דק׳', hall:'אולם הזירה', price:'₪189', c1:'#ff6a3d', c2:'#ff3df0' },
+  { id:'shadows', iso:'2026-08-09', title:'מַמְלֶכֶת הצְּלָלִים', tagline:'אפוס פנטזיה', genre:['פנטזיה','הרפתקה'],
+    synopsis:'נסיך גולה חוזר אל ממלכה שנבלעה בחושך כדי לתבוע בחזרה את כס האור. אפוס ראוותני עם תפאורה ענקית, להטוטי אש ואור ומקהלה שתסחף אתכם אל ממלכה שמעולם לא ראיתם.',
+    date:'9 באוגוסט 2026', time:'19:30', duration:'135 דק׳', hall:'האולם הגדול', price:'₪269', c1:'#ffb43d', c2:'#ff3df0' },
+  { id:'lights', iso:'2026-08-16', title:'אוֹרוֹת אַחֲרוֹנִים', tagline:'דרמה קאמרית', genre:['דרמה'],
+    synopsis:'בליל הכיבוי הגדול, כשהעיר כולה שוקעת לחשכה, נפגשים חמישה זרים על גג אחד. במשך לילה אחד בלבד הם חולקים סודות, פחדים וחלומות — לפני שהאורות יידלקו שוב ויאלצו אותם לחזור לחייהם.',
+    date:'16 באוגוסט 2026', time:'21:00', duration:'80 דק׳', hall:'אולם הקאמרי', price:'₪169', c1:'#7b5bff', c2:'#00e5ff' },
+];
+
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const coarse  = matchMedia('(pointer: coarse)').matches;
+const lerp = (a,b,t)=>a+(b-a)*t;
+
+/* ================= GLSL noise (Ashima simplex) ================= */
+const NOISE = `
+vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+float snoise(vec3 v){
+  const vec2 C=vec2(1.0/6.0,1.0/3.0); const vec4 D=vec4(0.0,0.5,1.0,2.0);
+  vec3 i=floor(v+dot(v,C.yyy)); vec3 x0=v-i+dot(i,C.xxx);
+  vec3 g=step(x0.yzx,x0.xyz); vec3 l=1.0-g; vec3 i1=min(g.xyz,l.zxy); vec3 i2=max(g.xyz,l.zxy);
+  vec3 x1=x0-i1+C.xxx; vec3 x2=x0-i2+C.yyy; vec3 x3=x0-D.yyy;
+  i=mod289(i);
+  vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
+  float n_=0.142857142857; vec3 ns=n_*D.wyz-D.xzx;
+  vec4 j=p-49.0*floor(p*ns.z*ns.z); vec4 x_=floor(j*ns.z); vec4 y_=floor(j-7.0*x_);
+  vec4 x=x_*ns.x+ns.yyyy; vec4 y=y_*ns.x+ns.yyyy; vec4 h=1.0-abs(x)-abs(y);
+  vec4 b0=vec4(x.xy,y.xy); vec4 b1=vec4(x.zw,y.zw);
+  vec4 s0=floor(b0)*2.0+1.0; vec4 s1=floor(b1)*2.0+1.0; vec4 sh=-step(h,vec4(0.0));
+  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy; vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+  vec3 p0=vec3(a0.xy,h.x); vec3 p1=vec3(a0.zw,h.y); vec3 p2=vec3(a1.xy,h.z); vec3 p3=vec3(a1.zw,h.w);
+  vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+  p0*=norm.x; p1*=norm.y; p2*=norm.z; p3*=norm.w;
+  vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0); m=m*m;
+  return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+}
+float fbm(vec3 p){float v=0.0,a=0.5;for(int i=0;i<5;i++){v+=a*snoise(p);p*=2.0;a*=0.5;}return v;}
+`;
+
+/* ================= 3D scene ================= */
+let renderer, scene, bgScene, camera, bgCam, clock;
+let nebulaMat, ico, icoMat, icoWire, layers=[];
+let webglOK=true;
+const mouse={x:0,y:0}, smouse={x:0,y:0};
+let curScroll=0;
+let tintAmt=0, tintTarget=0;
+const tintColor=new THREE.Color('#7b5bff'), tintCurrent=new THREE.Color('#7b5bff');
+
+function softSprite(){
+  const c=document.createElement('canvas'); c.width=c.height=64;
+  const g=c.getContext('2d'); const gr=g.createRadialGradient(32,32,0,32,32,32);
+  gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(.25,'rgba(255,255,255,.85)');
+  gr.addColorStop(.55,'rgba(255,255,255,.25)'); gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr; g.fillRect(0,0,64,64);
+  const t=new THREE.CanvasTexture(c); return t;
+}
+
+function makeLayer(count, spread, size, opacity, zBase, warp, dir){
+  const geo=new THREE.BufferGeometry();
+  const pos=new Float32Array(count*3); const col=new Float32Array(count*3);
+  const palette=[new THREE.Color('#00e5ff'),new THREE.Color('#7b5bff'),new THREE.Color('#ff3df0'),new THREE.Color('#ffcf5c'),new THREE.Color('#ffffff')];
+  const weights=[0.34,0.27,0.2,0.07,0.12];
+  for(let i=0;i<count;i++){
+    // distribute in a sphere-ish volume
+    const r=Math.pow(Math.random(),0.6)*spread;
+    const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
+    pos[i*3]=r*Math.sin(ph)*Math.cos(th);
+    pos[i*3+1]=r*Math.sin(ph)*Math.sin(th)*0.7;
+    pos[i*3+2]=r*Math.cos(ph);
+    // pick color by weight
+    let rnd=Math.random(), acc=0, ci=0;
+    for(let k=0;k<weights.length;k++){acc+=weights[k]; if(rnd<=acc){ci=k;break;}}
+    const cc=palette[ci];
+    col[i*3]=cc.r; col[i*3+1]=cc.g; col[i*3+2]=cc.b;
+  }
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const mat=new THREE.PointsMaterial({size,map:softSprite(),vertexColors:true,transparent:true,opacity,
+    blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
+  const pts=new THREE.Points(geo,mat);
+  pts.position.z=zBase;
+  scene.add(pts);
+  return {pts,zBase,warp,dir};
+}
+
+function init3D(){
+  const canvas=document.getElementById('bg-canvas');
+  renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.autoClear=false;
+  clock=new THREE.Clock();
+
+  scene=new THREE.Scene();
+  scene.fog=new THREE.FogExp2('#04050a',0.012);
+  camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,0.1,400);
+  camera.position.set(0,0,16);
+
+  // nebula fullscreen background
+  bgScene=new THREE.Scene();
+  bgCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+  nebulaMat=new THREE.ShaderMaterial({
+    depthTest:false,depthWrite:false,
+    uniforms:{
+      uTime:{value:0}, uRes:{value:new THREE.Vector2(innerWidth,innerHeight)},
+      uMouse:{value:new THREE.Vector2(0,0)}, uTint:{value:new THREE.Color('#7b5bff')}, uTintAmt:{value:0}
+    },
+    vertexShader:`varying vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);}`,
+    fragmentShader:NOISE+`
+      varying vec2 vUv; uniform float uTime; uniform vec2 uRes; uniform vec2 uMouse;
+      uniform vec3 uTint; uniform float uTintAmt;
+      void main(){
+        vec2 p=(vUv-0.5); p.x*=uRes.x/uRes.y;
+        float t=uTime*0.04;
+        vec3 q=vec3(p*2.1,t);
+        float w=fbm(q*0.5+vec3(uMouse*0.4,0.0));
+        float n=fbm(q+w); n=n*0.5+0.5;
+        vec3 c1=vec3(0.015,0.02,0.06);
+        vec3 c2=vec3(0.09,0.02,0.28);
+        vec3 c3=vec3(0.0,0.5,0.82);
+        vec3 c4=vec3(0.6,0.1,0.72);
+        vec3 col=mix(c1,c2,smoothstep(0.15,0.6,n));
+        col=mix(col,c3,smoothstep(0.55,0.82,n)*0.55);
+        col=mix(col,c4,smoothstep(0.72,0.98,n)*0.5);
+        float fil=fbm(q*3.0+5.0);
+        col+=c3*pow(max(fil,0.0),3.0)*0.22;
+        col=mix(col,uTint,uTintAmt*0.32);
+        float vig=smoothstep(1.25,0.25,length(p));
+        col*=vig; col=max(col,c1*vig);
+        gl_FragColor=vec4(col,1.0);
+      }`
+  });
+  bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),nebulaMat));
+
+  // central holographic icosahedron
+  const geo=new THREE.IcosahedronGeometry(3.3,1);
+  icoMat=new THREE.ShaderMaterial({
+    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    uniforms:{uTime:{value:0},uOpacity:{value:1}},
+    vertexShader:NOISE+`
+      uniform float uTime; varying vec3 vN; varying vec3 vV;
+      void main(){
+        float n=snoise(position*0.6+uTime*0.25);
+        vec3 pos=position+normal*n*0.45;
+        vec4 mv=modelViewMatrix*vec4(pos,1.0);
+        vN=normalize(normalMatrix*normal); vV=normalize(-mv.xyz);
+        gl_Position=projectionMatrix*mv;
+      }`,
+    fragmentShader:`
+      uniform float uTime; uniform float uOpacity; varying vec3 vN; varying vec3 vV;
+      void main(){
+        float fres=pow(1.0-max(dot(vN,vV),0.0),2.4);
+        vec3 a=vec3(0.0,0.9,1.0); vec3 b=vec3(0.85,0.2,0.95);
+        vec3 col=mix(a,b,0.5+0.5*sin(uTime*0.5));
+        gl_FragColor=vec4(col*fres,fres*uOpacity);
+      }`
+  });
+  ico=new THREE.Mesh(geo,icoMat);
+  icoWire=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:0x00e5ff,wireframe:true,transparent:true,opacity:0.18,blending:THREE.AdditiveBlending,depthWrite:false}));
+  icoWire.scale.setScalar(1.04);
+  const icoGroup=new THREE.Group(); icoGroup.add(ico); icoGroup.add(icoWire); icoGroup.name='ico';
+  scene.add(icoGroup); ico=icoGroup; // reuse ref as group
+
+  // particle layers (scaled to device)
+  const far  = reduced?900 : (coarse?1800:3600);
+  const near = reduced?220 : (coarse?460:900);
+  layers.push(makeLayer(far,60,0.22,0.7,-8,24,1));
+  layers.push(makeLayer(near,34,0.5,0.95,-2,40,-1));
+
+  addEventListener('resize',onResize);
+}
+
+function onResize(){
+  if(!webglOK) return;
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  nebulaMat.uniforms.uRes.value.set(innerWidth,innerHeight);
+}
+
+function scrollProgress(){
+  const max=document.body.scrollHeight-innerHeight;
+  return max>0?Math.min(window.scrollY/max,1):0;
+}
+
+let paused=false;
+document.addEventListener('visibilitychange',()=>{paused=document.hidden;});
+
+function animate(){
+  requestAnimationFrame(animate);
+  if(!webglOK||paused) return;
+  const t=clock.getElapsedTime();
+  const sp=scrollProgress();
+  curScroll=lerp(curScroll,sp,reduced?1:0.06);
+  smouse.x=lerp(smouse.x,mouse.x,0.06); smouse.y=lerp(smouse.y,mouse.y,0.06);
+
+  nebulaMat.uniforms.uTime.value=t;
+  nebulaMat.uniforms.uMouse.value.set(smouse.x,smouse.y);
+  // tint tween
+  tintAmt=lerp(tintAmt,tintTarget,0.07);
+  tintCurrent.lerp(tintColor,0.08);
+  nebulaMat.uniforms.uTintAmt.value=tintAmt;
+  nebulaMat.uniforms.uTint.value.copy(tintCurrent);
+
+  layers.forEach(L=>{
+    L.pts.rotation.y=t*0.018*L.dir;
+    L.pts.rotation.x=t*0.01*L.dir;
+    L.pts.position.z=L.zBase+curScroll*L.warp;
+  });
+
+  if(ico){
+    icoMat.uniforms.uTime.value=t;
+    ico.rotation.y=t*0.14; ico.rotation.x=t*0.07;
+    const k=Math.max(0,1-curScroll*2.6);
+    ico.scale.setScalar(0.55+k*0.55);
+    icoMat.uniforms.uOpacity.value=k;
+    icoWire.material.opacity=0.18*k;
+  }
+
+  camera.position.x=lerp(camera.position.x,smouse.x*2.4,0.05);
+  camera.position.y=lerp(camera.position.y,-smouse.y*1.7,0.05);
+  camera.lookAt(0,0,0);
+
+  renderer.clear();
+  renderer.render(bgScene,bgCam);
+  renderer.clearDepth();
+  renderer.render(scene,camera);
+}
+
+try{ init3D(); animate(); }
+catch(e){ webglOK=false; document.getElementById('bg-canvas').style.display='none'; console.warn('WebGL unavailable, using fallback bg.',e); }
+
+/* ================= UI / DOM ================= */
+function posterMarkup(s,big){
+  return `<div class="poster" style="--c1:${s.c1};--c2:${s.c2}">
+    <div class="poster-grid"></div>
+    <div class="poster-orbit"></div><div class="poster-orbit two"></div>
+    <div class="poster-sheen"></div>
+    <div class="poster-fade"></div>
+    <div class="poster-content">
+      <span class="poster-tag">${s.tagline}</span>
+      <div class="poster-title">${s.title}</div>
+      ${big?'':`<div class="poster-meta"><span class="dot"></span>${s.date} · ${s.time}</div>
+      <div class="poster-cta">פרטים והזמנה <span class="arrow">←</span></div>`}
+    </div>
+  </div>`;
+}
+
+// build cards (3 layers: .show-card → __float → __tilt)
+const grid=document.getElementById('shows-grid');
+const cards=[];
+SHOWS.forEach((s)=>{
+  const card=document.createElement('div');
+  card.className='show-card hide';
+  card.setAttribute('data-cursor','');
+  card._show=s;
+  card.innerHTML=`<div class="show-card__float"><div class="show-card__tilt">${posterMarkup(s,false)}</div></div>`;
+  card.addEventListener('click',()=>openShow(s.id));
+  if(!coarse){
+    const tilt=card.querySelector('.show-card__tilt');
+    card.addEventListener('pointermove',e=>{
+      const r=card.getBoundingClientRect();
+      const px=(e.clientX-r.left)/r.width-0.5, py=(e.clientY-r.top)/r.height-0.5;
+      tilt.style.transform=`translateY(-6px) rotateY(${px*10}deg) rotateX(${-py*10}deg) scale(1.02)`;
+    });
+    card.addEventListener('pointerleave',()=>{tilt.style.transform='';});
+  }
+  grid.appendChild(card); cards.push(card);
+});
+
+/* ---- Filters: search + genre + month ---- */
+(function setupFilters(){
+  const genreEl=document.getElementById('genre-chips');
+  const monthEl=document.getElementById('month-chips');
+  const countEl=document.getElementById('shows-count');
+  const noResults=document.getElementById('no-results');
+  const searchEl=document.getElementById('search');
+  const searchClear=document.getElementById('search-clear');
+  const monthsHe=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const mkey=s=>s.iso.slice(0,7);
+  const mlabel=k=>{const p=k.split('-');return monthsHe[+p[1]-1]+' '+p[0];};
+  // strip Hebrew niqqud/cantillation so search works on un-pointed queries
+  const strip=t=>t.toLowerCase().replace(/[֑-ׇ]/g,'');
+  const allGenres=[...new Set(SHOWS.flatMap(s=>s.genre))];
+  const allMonths=[...new Set(SHOWS.map(mkey))].sort();
+  let activeGenre='all', activeMonth='all', query='';
+
+  function makeChip(label,val,group){
+    const b=document.createElement('button');
+    b.className='fchip'+(val==='all'?' active':'');
+    b.textContent=label; b.dataset.val=val; b.setAttribute('data-cursor','');
+    b.addEventListener('click',()=>{
+      if(group==='genre') activeGenre=val; else activeMonth=val;
+      const parent=group==='genre'?genreEl:monthEl;
+      [...parent.children].forEach(c=>c.classList.toggle('active',c===b));
+      applyFilters(false);
+    });
+    return b;
+  }
+  genreEl.appendChild(makeChip('הכול','all','genre'));
+  allGenres.forEach(g=>genreEl.appendChild(makeChip(g,g,'genre')));
+  monthEl.appendChild(makeChip('הכול','all','month'));
+  allMonths.forEach(m=>monthEl.appendChild(makeChip(mlabel(m),m,'month')));
+
+  function applyFilters(stagger){
+    let visible=0, idx=0;
+    cards.forEach(card=>{
+      const s=card._show;
+      const q=strip(query.trim());
+      const hay=strip(s.title+' '+s.tagline+' '+s.synopsis+' '+s.genre.join(' '));
+      const match=(activeGenre==='all'||s.genre.includes(activeGenre))
+                &&(activeMonth==='all'||mkey(s)===activeMonth)
+                &&(!q||hay.includes(q));
+      if(match){
+        visible++;
+        card.style.display='';
+        card.style.transitionDelay=(stagger?(idx++*0.06):0)+'s';
+        requestAnimationFrame(()=>requestAnimationFrame(()=>card.classList.remove('hide')));
+      }else{
+        card.style.transitionDelay='0s';
+        card.classList.add('hide');
+        const c=card; setTimeout(()=>{ if(c.classList.contains('hide')) c.style.display='none'; },380);
+      }
+    });
+    countEl.textContent = visible===SHOWS.length ? `${SHOWS.length} הצגות בעונה` : `${visible} מתוך ${SHOWS.length} הצגות`;
+    noResults.hidden = visible>0;
+  }
+
+  searchEl.addEventListener('input',()=>{ query=searchEl.value; searchClear.classList.toggle('show',!!query.trim()); applyFilters(false); });
+  searchClear.addEventListener('click',()=>{ searchEl.value=''; query=''; searchClear.classList.remove('show'); applyFilters(false); searchEl.focus(); });
+  document.getElementById('clear-filters').addEventListener('click',()=>{
+    activeGenre='all'; activeMonth='all'; query=''; searchEl.value=''; searchClear.classList.remove('show');
+    [genreEl,monthEl].forEach(g=>[...g.children].forEach(c=>c.classList.toggle('active',c.dataset.val==='all')));
+    applyFilters(false);
+  });
+
+  countEl.textContent=`${SHOWS.length} הצגות בעונה`;
+  // reveal cards with a stagger once the section scrolls into view
+  let done=false;
+  const io=new IntersectionObserver(es=>{ if(es[0].isIntersecting&&!done){ done=true; applyFilters(true); io.disconnect(); } },{threshold:0.05});
+  io.observe(document.getElementById('shows'));
+})();
+
+/* ---- Modal ---- */
+const modal=document.getElementById('modal');
+let lastFocus=null;
+function openShow(id){
+  const s=SHOWS.find(x=>x.id===id); if(!s) return;
+  lastFocus=document.activeElement;
+  document.getElementById('modal-poster').innerHTML=posterMarkup(s,true);
+  document.getElementById('modal-tags').innerHTML=s.genre.map(g=>`<span>${g}</span>`).join('');
+  document.getElementById('modal-title').textContent=s.title;
+  document.getElementById('modal-tagline').textContent=s.tagline;
+  document.getElementById('modal-synopsis').textContent=s.synopsis;
+  document.getElementById('modal-meta').innerHTML=`
+    <div class="meta-cell"><div class="k">תאריך</div><div class="v">${s.date}</div></div>
+    <div class="meta-cell"><div class="k">שעה</div><div class="v">${s.time}</div></div>
+    <div class="meta-cell"><div class="k">משך</div><div class="v">${s.duration}</div></div>
+    <div class="meta-cell"><div class="k">אולם</div><div class="v">${s.hall}</div></div>`;
+  document.getElementById('modal-price').innerHTML=`${s.price}<small>החל מ־</small>`;
+  modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+  document.body.classList.add('locked');
+  // tint background to show palette
+  tintColor.set(s.c1); tintTarget=1;
+  document.querySelector('.modal-close').focus();
+}
+function closeShow(){
+  modal.classList.remove('open'); modal.setAttribute('aria-hidden','true');
+  document.body.classList.remove('locked'); tintTarget=0;
+  if(lastFocus) lastFocus.focus();
+}
+modal.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click',closeShow));
+document.getElementById('modal-book').addEventListener('click',()=>toast('בקרוב — <b>מערכת הזמנות</b> מקוונת'));
+addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))closeShow();});
+
+/* ---- Toast ---- */
+const toastEl=document.getElementById('toast'); let toastT;
+function toast(html){toastEl.innerHTML=html;toastEl.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>toastEl.classList.remove('show'),2600);}
+
+/* ---- Reveals ---- */
+const io=new IntersectionObserver((ents)=>{
+  ents.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}});
+},{threshold:0.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* ---- Header scroll state ---- */
+const header=document.querySelector('header');
+addEventListener('scroll',()=>{header.classList.toggle('scrolled',window.scrollY>30);},{passive:true});
+
+/* ---- Custom cursor ---- */
+const dot=document.querySelector('.cursor-dot'), ring=document.querySelector('.cursor-ring');
+let rx=innerWidth/2, ry=innerHeight/2;
+if(!coarse){
+  addEventListener('pointermove',e=>{
+    mouse.x=(e.clientX/innerWidth)*2-1; mouse.y=(e.clientY/innerHeight)*2-1;
+    dot.style.transform=`translate(${e.clientX}px,${e.clientY}px) translate(-50%,-50%)`;
+  });
+  addEventListener('pointerdown',()=>ring.classList.add('down'));
+  addEventListener('pointerup',()=>ring.classList.remove('down'));
+  document.addEventListener('pointerover',e=>{ if(e.target.closest('[data-cursor],a,button,.show-card')) ring.classList.add('hover'); });
+  document.addEventListener('pointerout',e=>{ if(e.target.closest('[data-cursor],a,button,.show-card')) ring.classList.remove('hover'); });
+  (function cursorLoop(){
+    rx=lerp(rx,(mouse.x*0.5+0.5)*innerWidth,0.18);
+    ry=lerp(ry,(mouse.y*0.5+0.5)*innerHeight,0.18);
+    ring.style.transform=`translate(${rx}px,${ry}px) translate(-50%,-50%)`;
+    requestAnimationFrame(cursorLoop);
+  })();
+}
+
+/* ---- Magnetic buttons ---- */
+if(!coarse){
+  document.querySelectorAll('.btn').forEach(b=>{
+    b.addEventListener('pointermove',e=>{
+      const r=b.getBoundingClientRect();
+      const x=e.clientX-r.left-r.width/2, y=e.clientY-r.top-r.height/2;
+      b.style.transform=`translate(${x*0.25}px,${y*0.35}px)`;
+    });
+    b.addEventListener('pointerleave',()=>{b.style.transform='';});
+  });
+}
+
+/* ---- Smooth nav (respect reduced motion) ---- */
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click',e=>{
+    const id=a.getAttribute('href'); if(id.length<2) return;
+    const t=document.querySelector(id); if(!t) return;
+    e.preventDefault(); t.scrollIntoView({behavior:reduced?'auto':'smooth'});
+  });
+});
+
+/* ================= Boot loader ================= */
+const loader=document.getElementById('loader');
+const bar=loader.querySelector('.bar>i'), pct=loader.querySelector('.loader-pct');
+let p=0;
+const boot=setInterval(()=>{
+  p+=Math.random()*16+6; if(p>=100){p=100;clearInterval(boot);finishBoot();}
+  bar.style.width=p+'%'; pct.textContent=Math.floor(p)+'%';
+},170);
+function finishBoot(){
+  setTimeout(()=>{
+    loader.classList.add('done');
+    document.body.classList.add('intro');
+    setTimeout(()=>loader.style.display='none',850);
+  },350);
+}
+</script>
+</body>
+</html>
